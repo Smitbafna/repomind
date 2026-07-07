@@ -1,0 +1,39 @@
+[project]
+name = "repomind"
+version = "0.1.0"
+description = "RepoMind - Agentic Code Intelligence Platform"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "aiosqlite>=0.20.0",
+    "fastapi>=0.139.0",
+    "gitpython>=3.1.50",
+    "httpx>=0.28.0",
+    "langgraph>=1.2.7",
+    "pydantic>=2.13.4",
+    "pydantic-settings>=2.14.2",
+    "python-dotenv>=1.2.2",
+    "qdrant-client>=1.13.0",
+    "sqlalchemy>=2.0.51",
+    "typer>=0.26.8",
+    "uvicorn>=0.50.0",
+]
+
+[project.scripts]
+repomind = "cli.main:app"
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "W", "UP"]
+
+[tool.mypy]
+strict = true
+python_version = "3.12"
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1.1",
+]
