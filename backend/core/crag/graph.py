@@ -10,8 +10,7 @@ from backend.core.crag.evaluator import RetrievalEvaluator
 from backend.core.crag.models import CorrectiveAction, RetrievalState
 from backend.core.crag.planner import CorrectivePlanner
 from backend.core.crag.retriever import CRAGRetriever
-from backend.core.llm.client import LLMClient
-from backend.core.llm.ollama_client import OllamaClient
+from backend.core.llm.client import LLMProvider
 from backend.core.query.analyzer import QueryAnalysis, QueryAnalyzer
 from backend.core.query.context_builder import ContextBuilder
 from backend.core.query.prompt_builder import PromptBuilder
@@ -42,7 +41,7 @@ class CRAGGraph:
         corrective_planner: CorrectivePlanner | None = None,
         context_builder: ContextBuilder | None = None,
         prompt_builder: PromptBuilder | None = None,
-        llm_client: LLMClient | None = None,
+        llm_provider: LLMProvider | None = None,
     ) -> None:
         self._analyzer = analyzer or QueryAnalyzer()
         self._crag_retriever = crag_retriever or CRAGRetriever()
@@ -50,7 +49,8 @@ class CRAGGraph:
         self._corrective_planner = corrective_planner or CorrectivePlanner()
         self._context_builder = context_builder or ContextBuilder()
         self._prompt_builder = prompt_builder or PromptBuilder()
-        self._llm_client = llm_client or OllamaClient()
+        from backend.core.llm.factory import get_llm_provider
+        self._llm_client = llm_provider or get_llm_provider()
         self._graph = self._build_graph()
 
     def _build_graph(self) -> StateGraph:

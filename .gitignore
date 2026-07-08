@@ -22,6 +22,8 @@ repositories/
 
 # Environment
 .env
+.env.railway
+.env.production
 
 # Cache
 .ruff_cache/

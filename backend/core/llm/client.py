@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
+from typing import Any, AsyncIterator
 
 
 @dataclass(frozen=True)
@@ -10,14 +11,21 @@ class LLMResponse:
 
     content: str
     model: str = ""
-    usage: dict = None
+    usage: dict | None = None
 
 
-class LLMClient(ABC):
-    """Abstract interface for LLM clients.
+@dataclass(frozen=True)
+class ChatMessage:
+    """A single chat message."""
+    role: str  # "system", "user", "assistant"
+    content: str
 
-    Every LLM implementation must expose a ``generate`` method
-    that takes a system prompt and user prompt and returns text.
+
+class LLMProvider(ABC):
+    """Abstract interface for LLM providers.
+
+    Every LLM implementation must expose ``generate``, ``chat``,
+    and ``stream`` methods.
     """
 
     @abstractmethod
@@ -40,3 +48,47 @@ class LLMClient(ABC):
             An ``LLMResponse`` containing the generated text.
         """
         ...
+
+    @abstractmethod
+    async def chat(
+        self,
+        messages: list[ChatMessage],
+        temperature: float = 0.1,
+        max_tokens: int = 2048,
+    ) -> LLMResponse:
+        """Send a chat conversation to the LLM.
+
+        Args:
+            messages: List of chat messages forming the conversation.
+            temperature: Sampling temperature.
+            max_tokens: Maximum tokens in the response.
+
+        Returns:
+            An ``LLMResponse`` containing the generated text.
+        """
+        ...
+
+    @abstractmethod
+    async def stream(
+        self,
+        messages: list[ChatMessage],
+        temperature: float = 0.1,
+        max_tokens: int = 2048,
+    ) -> AsyncIterator[str]:
+        """Stream a response from the LLM token by token.
+
+        Args:
+            messages: List of chat messages forming the conversation.
+            temperature: Sampling temperature.
+            max_tokens: Maximum tokens in the response.
+
+        Yields:
+            Tokens as they are generated.
+        """
+        ...
+        # pylint: disable=unreachable
+        yield ""
+
+
+# Backward compatibility alias
+LLMClient = LLMProvider

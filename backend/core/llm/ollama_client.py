@@ -2,18 +2,18 @@ from __future__ import annotations
 
 import json
 import logging
-from typing import Any
+from typing import Any, AsyncIterator
 
 import httpx
 
 from backend.config.settings import get_settings
-from backend.core.llm.client import LLMClient, LLMResponse
+from backend.core.llm.client import ChatMessage, LLMProvider, LLMResponse
 
 logger = logging.getLogger(__name__)
 
 
-class OllamaClient(LLMClient):
-    """LLM client that uses Ollama's chat API.
+class OllamaProvider(LLMProvider):
+    """LLM provider that uses Ollama's chat API.
 
     Supports configurable models and streaming via the
     ``/api/chat`` endpoint.
@@ -32,27 +32,25 @@ class OllamaClient(LLMClient):
         temperature: float = 0.1,
         max_tokens: int = 2048,
     ) -> LLMResponse:
-        """Generate a response using Ollama's chat API.
+        """Generate a response using Ollama's chat API."""
+        messages = [
+            ChatMessage(role="system", content=system_prompt),
+            ChatMessage(role="user", content=user_prompt),
+        ]
+        return await self.chat(messages, temperature=temperature, max_tokens=max_tokens)
 
-        Args:
-            system_prompt: The system-level instruction prompt.
-            user_prompt: The user message / question.
-            temperature: Sampling temperature.
-            max_tokens: Maximum tokens in the response.
-
-        Returns:
-            An ``LLMResponse`` with the generated text.
-
-        Raises:
-            ConnectionError: If Ollama is unreachable.
-            RuntimeError: If the API returns an error.
-        """
+    async def chat(
+        self,
+        messages: list[ChatMessage],
+        temperature: float = 0.1,
+        max_tokens: int = 2048,
+    ) -> LLMResponse:
+        """Send a chat conversation to Ollama."""
         url = f"{self._base_url}/api/chat"
         payload: dict[str, Any] = {
             "model": self._model,
             "messages": [
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_prompt},
+                {"role": m.role, "content": m.content} for m in messages
             ],
             "options": {
                 "temperature": temperature,
@@ -85,3 +83,50 @@ class OllamaClient(LLMClient):
             content=content,
             model=self._model,
         )
+
+    async def stream(
+        self,
+        messages: list[ChatMessage],
+        temperature: float = 0.1,
+        max_tokens: int = 2048,
+    ) -> AsyncIterator[str]:
+        """Stream a response from Ollama token by token."""
+        url = f"{self._base_url}/api/chat"
+        payload: dict[str, Any] = {
+            "model": self._model,
+            "messages": [
+                {"role": m.role, "content": m.content} for m in messages
+            ],
+            "options": {
+                "temperature": temperature,
+                "num_predict": max_tokens,
+            },
+            "stream": True,
+        }
+
+        try:
+            async with httpx.AsyncClient(timeout=self._timeout) as client:
+                async with client.stream("POST", url, json=payload) as response:
+                    response.raise_for_status()
+                    async for line in response.aiter_lines():
+                        if not line.strip():
+                            continue
+                        try:
+                            chunk = json.loads(line)
+                            token = chunk.get("message", {}).get("content", "")
+                            if token:
+                                yield token
+                        except json.JSONDecodeError:
+                            continue
+        except httpx.RequestError as exc:
+            raise ConnectionError(
+                f"Failed to connect to Ollama at {self._base_url}: {exc}"
+            ) from exc
+        except httpx.HTTPStatusError as exc:
+            raise RuntimeError(
+                f"Ollama chat API returned {exc.response.status_code}: {exc.response.text}"
+            ) from exc
+
+
+# Backwards compatibility alias
+OllamaClient = OllamaProvider

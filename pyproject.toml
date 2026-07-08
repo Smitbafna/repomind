@@ -1,6 +1,6 @@
 [project]
 name = "repomind"
-version = "0.1.0"
+version = "0.2.0"
 description = "RepoMind - Agentic Code Intelligence Platform"
 readme = "README.md"
 requires-python = ">=3.12"
@@ -8,15 +8,19 @@ dependencies = [
     "aiosqlite>=0.20.0",
     "fastapi>=0.139.0",
     "gitpython>=3.1.50",
+    "google-generativeai>=0.8.0",
     "httpx>=0.28.0",
     "langgraph>=1.2.7",
     "pydantic>=2.13.4",
     "pydantic-settings>=2.14.2",
     "python-dotenv>=1.2.2",
+    "python-jose[cryptography]>=3.3.0",
     "qdrant-client>=1.13.0",
+    "slowapi>=0.1.9",
     "sqlalchemy>=2.0.51",
     "typer>=0.26.8",
     "uvicorn>=0.50.0",
+    "asyncpg>=0.30.0",
 ]
 
 [project.scripts]
@@ -32,8 +36,10 @@ select = ["E", "F", "I", "N", "W", "UP"]
 [tool.mypy]
 strict = true
 python_version = "3.12"
+ignore_missing_imports = true
 
 [dependency-groups]
 dev = [
     "pytest>=9.1.1",
+    "pytest-asyncio>=0.25.0",
 ]

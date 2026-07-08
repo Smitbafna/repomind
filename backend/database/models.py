@@ -4,7 +4,6 @@ import uuid
 from datetime import datetime, timezone
 
 from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Text, func
-from sqlalchemy.dialects.sqlite import CHAR as SQLiteChar
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 
@@ -16,13 +15,42 @@ def _generate_uuid() -> str:
     return str(uuid.uuid4())
 
 
+class User(Base):
+    """Represents an authenticated user."""
+
+    __tablename__ = "users"
+
+    id: Mapped[str] = mapped_column(
+        String(36), primary_key=True, default=_generate_uuid
+    )
+    email: Mapped[str] = mapped_column(
+        String(255), nullable=False, unique=True, index=True
+    )
+    hashed_password: Mapped[str] = mapped_column(String(255), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        nullable=False,
+    )
+
+    repositories: Mapped[list[Repository]] = relationship(
+        "Repository", back_populates="user", cascade="all, delete-orphan"
+    )
+
+    def __repr__(self) -> str:
+        return f"<User {self.email}>"
+
+
 class Repository(Base):
     """Represents a cloned git repository."""
 
     __tablename__ = "repositories"
 
     id: Mapped[str] = mapped_column(
-        SQLiteChar(36), primary_key=True, default=_generate_uuid
+        String(36), primary_key=True, default=_generate_uuid
+    )
+    user_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True
     )
     owner: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
     name: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
@@ -39,6 +67,8 @@ class Repository(Base):
     updated_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), onupdate=func.now(), nullable=True
     )
+
+    user: Mapped[User | None] = relationship("User", back_populates="repositories")
 
     # ── relationships ──────────────────────────────────────────
     files: Mapped[list[File]] = relationship(
@@ -118,10 +148,10 @@ class File(Base):
     __tablename__ = "files"
 
     id: Mapped[str] = mapped_column(
-        SQLiteChar(36), primary_key=True, default=_generate_uuid
+        String(36), primary_key=True, default=_generate_uuid
     )
     repository_id: Mapped[str] = mapped_column(
-        SQLiteChar(36),
+        String(36),
         ForeignKey("repositories.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
@@ -146,10 +176,10 @@ class CodeFile(Base):
     __tablename__ = "code_files"
 
     id: Mapped[str] = mapped_column(
-        SQLiteChar(36), primary_key=True, default=_generate_uuid
+        String(36), primary_key=True, default=_generate_uuid
     )
     repository_id: Mapped[str] = mapped_column(
-        SQLiteChar(36),
+        String(36),
         ForeignKey("repositories.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
@@ -191,10 +221,10 @@ class Class(Base):
     __tablename__ = "classes"
 
     id: Mapped[str] = mapped_column(
-        SQLiteChar(36), primary_key=True, default=_generate_uuid
+        String(36), primary_key=True, default=_generate_uuid
     )
     file_id: Mapped[str] = mapped_column(
-        SQLiteChar(36),
+        String(36),
         ForeignKey("code_files.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
@@ -228,16 +258,16 @@ class Function(Base):
     __tablename__ = "functions"
 
     id: Mapped[str] = mapped_column(
-        SQLiteChar(36), primary_key=True, default=_generate_uuid
+        String(36), primary_key=True, default=_generate_uuid
     )
     file_id: Mapped[str] = mapped_column(
-        SQLiteChar(36),
+        String(36),
         ForeignKey("code_files.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
     )
     class_id: Mapped[str | None] = mapped_column(
-        SQLiteChar(36),
+        String(36),
         ForeignKey("classes.id", ondelete="CASCADE"),
         nullable=True,
         index=True,
@@ -267,10 +297,10 @@ class Import(Base):
     __tablename__ = "imports"
 
     id: Mapped[str] = mapped_column(
-        SQLiteChar(36), primary_key=True, default=_generate_uuid
+        String(36), primary_key=True, default=_generate_uuid
     )
     file_id: Mapped[str] = mapped_column(
-        SQLiteChar(36),
+        String(36),
         ForeignKey("code_files.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
@@ -294,10 +324,10 @@ class Relationship(Base):
     __tablename__ = "relationships"
 
     id: Mapped[str] = mapped_column(
-        SQLiteChar(36), primary_key=True, default=_generate_uuid
+        String(36), primary_key=True, default=_generate_uuid
     )
     repository_id: Mapped[str] = mapped_column(
-        SQLiteChar(36),
+        String(36),
         ForeignKey("repositories.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
@@ -327,10 +357,10 @@ class Commit(Base):
     __tablename__ = "commits"
 
     id: Mapped[str] = mapped_column(
-        SQLiteChar(36), primary_key=True, default=_generate_uuid
+        String(36), primary_key=True, default=_generate_uuid
     )
     repository_id: Mapped[str] = mapped_column(
-        SQLiteChar(36),
+        String(36),
         ForeignKey("repositories.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
@@ -375,10 +405,10 @@ class CommitFile(Base):
     __tablename__ = "commit_files"
 
     id: Mapped[str] = mapped_column(
-        SQLiteChar(36), primary_key=True, default=_generate_uuid
+        String(36), primary_key=True, default=_generate_uuid
     )
     commit_id: Mapped[str] = mapped_column(
-        SQLiteChar(36),
+        String(36),
         ForeignKey("commits.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
@@ -408,10 +438,10 @@ class CommitRelationship(Base):
     __tablename__ = "commit_relationships"
 
     id: Mapped[str] = mapped_column(
-        SQLiteChar(36), primary_key=True, default=_generate_uuid
+        String(36), primary_key=True, default=_generate_uuid
     )
     commit_id: Mapped[str] = mapped_column(
-        SQLiteChar(36),
+        String(36),
         ForeignKey("commits.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
@@ -439,10 +469,10 @@ class GitHubIssue(Base):
     __tablename__ = "github_issues"
 
     id: Mapped[str] = mapped_column(
-        SQLiteChar(36), primary_key=True, default=_generate_uuid
+        String(36), primary_key=True, default=_generate_uuid
     )
     repository_id: Mapped[str] = mapped_column(
-        SQLiteChar(36),
+        String(36),
         ForeignKey("repositories.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
@@ -476,10 +506,10 @@ class GitHubPullRequest(Base):
     __tablename__ = "github_pull_requests"
 
     id: Mapped[str] = mapped_column(
-        SQLiteChar(36), primary_key=True, default=_generate_uuid
+        String(36), primary_key=True, default=_generate_uuid
     )
     repository_id: Mapped[str] = mapped_column(
-        SQLiteChar(36),
+        String(36),
         ForeignKey("repositories.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
@@ -519,10 +549,10 @@ class GitHubReview(Base):
     __tablename__ = "github_reviews"
 
     id: Mapped[str] = mapped_column(
-        SQLiteChar(36), primary_key=True, default=_generate_uuid
+        String(36), primary_key=True, default=_generate_uuid
     )
     repository_id: Mapped[str] = mapped_column(
-        SQLiteChar(36),
+        String(36),
         ForeignKey("repositories.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
@@ -548,10 +578,10 @@ class GitHubComment(Base):
     __tablename__ = "github_comments"
 
     id: Mapped[str] = mapped_column(
-        SQLiteChar(36), primary_key=True, default=_generate_uuid
+        String(36), primary_key=True, default=_generate_uuid
     )
     repository_id: Mapped[str] = mapped_column(
-        SQLiteChar(36),
+        String(36),
         ForeignKey("repositories.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
@@ -580,10 +610,10 @@ class GitHubDiscussion(Base):
     __tablename__ = "github_discussions"
 
     id: Mapped[str] = mapped_column(
-        SQLiteChar(36), primary_key=True, default=_generate_uuid
+        String(36), primary_key=True, default=_generate_uuid
     )
     repository_id: Mapped[str] = mapped_column(
-        SQLiteChar(36),
+        String(36),
         ForeignKey("repositories.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
@@ -612,10 +642,10 @@ class GitHubRelease(Base):
     __tablename__ = "github_releases"
 
     id: Mapped[str] = mapped_column(
-        SQLiteChar(36), primary_key=True, default=_generate_uuid
+        String(36), primary_key=True, default=_generate_uuid
     )
     repository_id: Mapped[str] = mapped_column(
-        SQLiteChar(36),
+        String(36),
         ForeignKey("repositories.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
@@ -641,10 +671,10 @@ class GitHubLabel(Base):
     __tablename__ = "github_labels"
 
     id: Mapped[str] = mapped_column(
-        SQLiteChar(36), primary_key=True, default=_generate_uuid
+        String(36), primary_key=True, default=_generate_uuid
     )
     repository_id: Mapped[str] = mapped_column(
-        SQLiteChar(36),
+        String(36),
         ForeignKey("repositories.id", ondelete="CASCADE"),
         nullable=False,
         index=True,

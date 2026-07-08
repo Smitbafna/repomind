@@ -1,0 +1,128 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: repomind-postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-repomind}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-repomind}
+      POSTGRES_DB: ${POSTGRES_DB:-repomind}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U repomind"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: "0.5"
+        reservations:
+          memory: 256M
+          cpus: "0.1"
+
+  qdrant:
+    image: qdrant/qdrant:latest
+    container_name: repomind-qdrant
+    ports:
+      - "6333:6333"
+      - "6334:6334"
+    volumes:
+      - qdrant_storage:/qdrant/storage
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+          cpus: "1.0"
+        reservations:
+          memory: 512M
+          cpus: "0.25"
+
+  redis:
+    image: redis:7-alpine
+    container_name: repomind-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: "0.5"
+        reservations:
+          memory: 128M
+          cpus: "0.1"
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: repomind-api
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env.production
+    volumes:
+      - repositories_data:/app/repositories
+    depends_on:
+      postgres:
+        condition: service_healthy
+      qdrant:
+        condition: service_started
+      redis:
+        condition: service_started
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+          cpus: "1.0"
+        reservations:
+          memory: 512M
+          cpus: "0.25"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health/detailed"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: repomind-worker
+    command: ["uv", "run", "python", "-m", "backend.core.jobs.worker"]
+    env_file:
+      - .env.production
+    volumes:
+      - repositories_data:/app/repositories
+    depends_on:
+      postgres:
+        condition: service_healthy
+      qdrant:
+        condition: service_started
+      redis:
+        condition: service_started
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+          cpus: "1.0"
+        reservations:
+          memory: 512M
+          cpus: "0.25"
+
+volumes:
+  postgres_data:
+  qdrant_storage:
+  redis_data:
+  repositories_data:

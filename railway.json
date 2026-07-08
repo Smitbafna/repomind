@@ -1,0 +1,11 @@
+{
+  "services": [
+    {
+      "name": "api",
+      "source": {
+        "type": "dockerfile",
+        "dockerfile": "Dockerfile"
+      }
+    }
+  ]
+}

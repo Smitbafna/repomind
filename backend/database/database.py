@@ -15,9 +15,31 @@ from backend.config.settings import get_settings
 
 settings = get_settings()
 
+
+def _get_async_url() -> str:
+    """Convert the configured database URL to an async-compatible URL.
+
+    Supports both SQLite and PostgreSQL URLs.
+    """
+    url = settings.database_url
+
+    # If already async, return as-is.
+    if "+aiosqlite" in url or "+asyncpg" in url:
+        return url
+
+    # Convert sync SQLite to async.
+    if url.startswith("sqlite:///"):
+        return url.replace("sqlite:///", "sqlite+aiosqlite:///", 1)
+
+    # Convert sync PostgreSQL to async.
+    if url.startswith("postgresql://"):
+        return url.replace("postgresql://", "postgresql+asyncpg://", 1)
+
+    return url
+
+
 # ── Async engine (used by FastAPI) ────────────────────────────────
-_async_url = settings.database_url.replace("sqlite:///", "sqlite+aiosqlite:///")
-Engine = create_async_engine(_async_url, echo=settings.debug, future=True)
+Engine = create_async_engine(_get_async_url(), echo=settings.debug, future=True)
 AsyncSessionLocal = async_sessionmaker(
     bind=Engine,
     class_=AsyncSession,

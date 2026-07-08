@@ -3,8 +3,8 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass, field
 
-from backend.core.llm.client import LLMClient
-from backend.core.llm.ollama_client import OllamaClient
+from backend.core.llm.client import LLMProvider
+from backend.core.llm.factory import get_llm_provider
 from backend.core.query.analyzer import QueryAnalyzer
 from backend.core.query.context_builder import ContextBuilder
 from backend.core.query.prompt_builder import PromptBuilder
@@ -45,7 +45,7 @@ class QueryEngine:
         vector_retriever: VectorRetriever | None = None,
         keyword_retriever: KeywordRetriever | None = None,
         hybrid_retriever: HybridRetriever | None = None,
-        llm_client: LLMClient | None = None,
+        llm_client: LLMProvider | None = None,
         query_analyzer: QueryAnalyzer | None = None,
         context_builder: ContextBuilder | None = None,
         prompt_builder: PromptBuilder | None = None,
@@ -53,7 +53,7 @@ class QueryEngine:
         self._vector_retriever = vector_retriever or VectorRetriever()
         self._keyword_retriever = keyword_retriever or KeywordRetriever()
         self._hybrid_retriever = hybrid_retriever or HybridRetriever()
-        self._llm_client = llm_client or OllamaClient()
+        self._llm_client = llm_client or get_llm_provider()
         self._query_analyzer = query_analyzer or QueryAnalyzer()
         self._context_builder = context_builder or ContextBuilder()
         self._prompt_builder = prompt_builder or PromptBuilder()

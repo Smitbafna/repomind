@@ -18,7 +18,31 @@ from backend.database.models import (
     Import,
     Relationship,
     Repository,
+    User,
 )
+
+
+class UserRepository:
+    """Data-access layer for the ``users`` table."""
+
+    def __init__(self, session: AsyncSession) -> None:
+        self._session = session
+
+    async def add(self, user: User) -> User:
+        """Persist a new user row."""
+        self._session.add(user)
+        await self._session.flush()
+        return user
+
+    async def get_by_id(self, user_id: str) -> User | None:
+        """Look up a user by primary key."""
+        return await self._session.get(User, user_id)
+
+    async def get_by_email(self, email: str) -> User | None:
+        """Look up a user by email address."""
+        stmt = select(User).where(User.email == email)
+        result = await self._session.execute(stmt)
+        return result.scalar_one_or_none()
 
 
 class RepositoryRepository:
@@ -40,6 +64,16 @@ class RepositoryRepository:
     async def list_all(self) -> Sequence[Repository]:
         """Return every repository ordered by creation time descending."""
         stmt = select(Repository).order_by(Repository.created_at.desc())
+        result = await self._session.execute(stmt)
+        return result.scalars().all()
+
+    async def list_by_user(self, user_id: str) -> Sequence[Repository]:
+        """Return repositories belonging to a user."""
+        stmt = (
+            select(Repository)
+            .where(Repository.user_id == user_id)
+            .order_by(Repository.created_at.desc())
+        )
         result = await self._session.execute(stmt)
         return result.scalars().all()
 
